@@ -1,0 +1,22 @@
+{
+  "name": "Weather",
+  "description": "Current conditions, today's high/low, wind and humidity. Keyless (Open-Meteo).",
+  "entry": "index.html",
+  "dwellSec": 30,
+  "aspect": "16:9",
+  "category": "Weather",
+  "author": "GodricTM",
+  "screenshots": ["screenshot.png"],
+  "config": [
+    { "key": "where", "type": "location", "label": "Location", "required": true,
+      "default": "@global.location", "help": "Used to fetch local weather." },
+    { "key": "unit", "type": "select", "label": "Units", "options": ["celsius", "fahrenheit"], "default": "celsius" }
+  ],
+  "urlParams": {
+    "lat": "{where.lat}",
+    "lon": "{where.lon}",
+    "place": "{where.name}",
+    "unit": "{unit}"
+  },
+  "permissions": []
+}

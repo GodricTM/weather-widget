@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Weather</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    font-family: -apple-system, "Segoe UI", Roboto, system-ui, sans-serif;
+    color: #f0f0f0;
+    background: radial-gradient(120% 120% at 50% 12%, #14233a 0%, #0c1320 60%, #070a10 100%);
+    height: 100vh; overflow: hidden;
+    display: grid; place-items: center;
+  }
+  #card { text-align: center; width: 100%; padding: 0 4vw; }
+  #place { font-size: 4vw; opacity: .8; font-weight: 500; }
+  #row { display: flex; align-items: center; justify-content: center; gap: 3vw; margin-top: 1vh; }
+  #icon { font-size: 18vw; line-height: 1; }
+  #temp { font-size: 20vw; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+  #temp .u { font-size: 7vw; opacity: .6; vertical-align: super; }
+  #cond { font-size: 4.5vw; opacity: .9; margin-top: .5vh; }
+  #meta { margin-top: 2.5vh; font-size: 3.4vw; opacity: .72; display: flex; gap: 4vw; justify-content: center; }
+  #err { font-size: 3.6vw; opacity: .7; }
+  .dim { opacity: .55; }
+</style>
+</head>
+<body>
+  <div id="card">
+    <div id="place">—</div>
+    <div id="row"><div id="icon">⏳</div><div id="temp">--</div></div>
+    <div id="cond"></div>
+    <div id="meta"></div>
+  </div>
+<script>
+  const qs = new URLSearchParams(location.search);
+  const lat = qs.get("lat"), lon = qs.get("lon");
+  const unit = (qs.get("unit") || "celsius").toLowerCase().startsWith("f") ? "fahrenheit" : "celsius";
+  const uSym = unit === "fahrenheit" ? "°F" : "°C";
+  const place = qs.get("place") || "";
+
+  const el = id => document.getElementById(id);
+  el("place").textContent = place || "Weather";
+
+  // WMO weather code -> [emoji, text]
+  function wmo(c) {
+    const m = {
+      0:["☀️","Clear"],1:["🌤️","Mainly clear"],2:["⛅","Partly cloudy"],3:["☁️","Overcast"],
+      45:["🌫️","Fog"],48:["🌫️","Rime fog"],
+      51:["🌦️","Light drizzle"],53:["🌦️","Drizzle"],55:["🌧️","Heavy drizzle"],
+      61:["🌧️","Light rain"],63:["🌧️","Rain"],65:["🌧️","Heavy rain"],
+      66:["🌧️","Freezing rain"],67:["🌧️","Freezing rain"],
+      71:["🌨️","Light snow"],73:["🌨️","Snow"],75:["❄️","Heavy snow"],77:["🌨️","Snow grains"],
+      80:["🌦️","Showers"],81:["🌧️","Showers"],82:["⛈️","Violent showers"],
+      85:["🌨️","Snow showers"],86:["🌨️","Snow showers"],
+      95:["⛈️","Thunderstorm"],96:["⛈️","Thunderstorm + hail"],99:["⛈️","Thunderstorm + hail"]
+    };
+    return m[c] || ["🌡️", "—"];
+  }
+
+  function fail(msg) {
+    el("icon").textContent = "⚠️";
+    el("temp").textContent = "";
+    el("cond").innerHTML = `<span id="err">${msg}</span>`;
+    el("meta").textContent = "";
+  }
+
+  async function load() {
+    if (!lat || !lon) { fail("Set a location in the widget settings."); return; }
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}`
+      + `&current=temperature_2m,weather_code,wind_speed_10m,relative_humidity_2m`
+      + `&daily=temperature_2m_max,temperature_2m_min`
+      + `&temperature_unit=${unit}&wind_speed_unit=kmh&timezone=auto&forecast_days=1`;
+    try {
+      const r = await fetch(url, { cache: "no-store" });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      const d = await r.json();
+      const cur = d.current;
+      const [emoji, text] = wmo(cur.weather_code);
+      el("icon").textContent = emoji;
+      el("temp").innerHTML = Math.round(cur.temperature_2m) + `<span class="u">${uSym}</span>`;
+      el("cond").textContent = text;
+      const hi = Math.round(d.daily.temperature_2m_max[0]);
+      const lo = Math.round(d.daily.temperature_2m_min[0]);
+      el("meta").innerHTML =
+        `<span>↑ ${hi}${uSym} <span class="dim">↓ ${lo}${uSym}</span></span>`
+        + `<span>💨 ${Math.round(cur.wind_speed_10m)} km/h</span>`
+        + `<span>💧 ${cur.relative_humidity_2m}%</span>`;
+    } catch (e) {
+      fail("Couldn't reach the weather service.");
+    }
+  }
+
+  load();
+  setInterval(load, 10 * 60 * 1000); // refresh every 10 min
+</script>
+</body>
+</html>
